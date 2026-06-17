@@ -43,6 +43,34 @@ python cli.py "a storage account with a private blob container"
 echo "an AKS cluster with 3 nodes and a container registry" | python cli.py
 ```
 
+## Testing
+
+There are two levels.
+
+**Offline tests (no API key, no network).** These inject a fake client that
+mimics the SDK, so they verify the parsing/error logic anywhere:
+
+```bash
+python -m unittest discover -s tests -v   # or: pytest
+```
+
+**Real end-to-end check (needs `ANTHROPIC_API_KEY`).** After `pip install -r
+requirements.txt` and setting the key:
+
+```bash
+# CLI
+python cli.py "a resource group named demo-rg in West Europe"
+
+# Web app — start it, then send a request
+python app.py &
+curl -s localhost:5000/api/translate \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"a storage account with a private blob container"}'
+```
+
+Then run `terraform fmt -check` / `terraform validate` on the output to confirm
+it's syntactically valid HCL.
+
 ## How it works
 
 `translator.py` sends your description to Claude with a system prompt that makes

@@ -8,8 +8,10 @@ the model reason about the right Azure resources before emitting code.
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
-from anthropic import Anthropic
+if TYPE_CHECKING:  # only needed for type checkers, not at runtime
+    from anthropic import Anthropic
 
 MODEL = "claude-opus-4-8"
 
@@ -61,7 +63,10 @@ def translate(prompt: str, *, client: Anthropic | None = None) -> str:
     if not prompt:
         raise TranslationError("Please describe the infrastructure you want.")
 
-    client = client or Anthropic()
+    if client is None:
+        from anthropic import Anthropic  # imported lazily so tests can inject a fake
+
+        client = Anthropic()
 
     with client.messages.stream(
         model=MODEL,
