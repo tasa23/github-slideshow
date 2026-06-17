@@ -1,0 +1,19 @@
+# GitLab CI — runs the security regression tests on every push/MR.
+# No secrets required: the suite runs in LOCAL_DEV mode (SQLite, dummy secret).
+stages:
+  - test
+
+security-tests:
+  stage: test
+  image: python:3.12-slim
+  variables:
+    LOCAL_DEV: "1"
+    FLASK_SECRET_KEY: "ci-test-secret"
+  before_script:
+    - pip install --no-cache-dir -r requirements-dev.txt
+  script:
+    # Run from the bundle root so `import app` and templates/ resolve.
+    - pytest -v
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH

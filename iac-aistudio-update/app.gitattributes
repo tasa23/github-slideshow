@@ -1,0 +1,8 @@
+# Rename to ".gitattributes" in your app repo root.
+# Forces LF line endings so files built into the Linux container image stay
+# correct even when edited on Windows.
+* text=auto
+*.py text eol=lf
+*.sh text eol=lf
+*.html text eol=lf
+Dockerfile text eol=lf

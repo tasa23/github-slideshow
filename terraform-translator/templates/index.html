@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plain Language → Azure Terraform</title>
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      max-width: 880px; margin: 0 auto; padding: 2rem 1.25rem; line-height: 1.5;
+    }
+    h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+    p.sub { margin-top: 0; color: #6b7280; }
+    textarea {
+      width: 100%; min-height: 120px; padding: 0.75rem; font-size: 1rem;
+      border: 1px solid #cbd5e1; border-radius: 8px; resize: vertical;
+      font-family: inherit;
+    }
+    .row { display: flex; gap: 0.75rem; align-items: center; margin: 0.75rem 0; }
+    button {
+      background: #2563eb; color: #fff; border: 0; border-radius: 8px;
+      padding: 0.6rem 1.1rem; font-size: 1rem; cursor: pointer;
+    }
+    button:disabled { opacity: 0.6; cursor: progress; }
+    .examples { font-size: 0.85rem; color: #6b7280; }
+    .examples button {
+      background: transparent; color: #2563eb; border: 1px solid #cbd5e1;
+      padding: 0.25rem 0.6rem; font-size: 0.8rem; border-radius: 999px; margin: 0.15rem;
+    }
+    pre {
+      background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 8px;
+      overflow-x: auto; font-size: 0.85rem; line-height: 1.45;
+    }
+    .error { color: #b91c1c; font-weight: 600; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; }
+    .copy { background: #334155; }
+  </style>
+</head>
+<body>
+  <h1>Plain Language → Azure Terraform</h1>
+  <p class="sub">Describe the Azure infrastructure you want and get Terraform (HCL) using the <code>azurerm</code> provider.</p>
+
+  <textarea id="prompt" placeholder="e.g. A Linux web app on a B1 plan with a PostgreSQL flexible server, both in West Europe"></textarea>
+
+  <div class="examples">
+    Try:
+    <button class="ex">A storage account with a private blob container</button>
+    <button class="ex">An AKS cluster with 3 nodes and a container registry</button>
+    <button class="ex">A virtual network with two subnets and a network security group</button>
+  </div>
+
+  <div class="row">
+    <button id="go">Generate Terraform</button>
+    <span id="status"></span>
+  </div>
+
+  <div id="result" hidden>
+    <div class="toolbar">
+      <strong>Generated <code>main.tf</code></strong>
+      <button class="copy" id="copy">Copy</button>
+    </div>
+    <pre><code id="code"></code></pre>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const promptEl = $("prompt"), goEl = $("go"), statusEl = $("status");
+    const resultEl = $("result"), codeEl = $("code");
+
+    document.querySelectorAll(".ex").forEach((b) =>
+      b.addEventListener("click", () => { promptEl.value = b.textContent; promptEl.focus(); })
+    );
+
+    $("copy").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(codeEl.textContent);
+      $("copy").textContent = "Copied!";
+      setTimeout(() => ($("copy").textContent = "Copy"), 1500);
+    });
+
+    async function generate() {
+      const prompt = promptEl.value.trim();
+      if (!prompt) { promptEl.focus(); return; }
+      goEl.disabled = true;
+      statusEl.textContent = "Generating… (this can take a moment)";
+      resultEl.hidden = true;
+      statusEl.classList.remove("error");
+      try {
+        const res = await fetch("/api/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Request failed");
+        codeEl.textContent = data.terraform;
+        resultEl.hidden = false;
+        statusEl.textContent = "";
+      } catch (err) {
+        statusEl.textContent = err.message;
+        statusEl.classList.add("error");
+      } finally {
+        goEl.disabled = false;
+      }
+    }
+
+    goEl.addEventListener("click", generate);
+    promptEl.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") generate();
+    });
+  </script>
+</body>
+</html>

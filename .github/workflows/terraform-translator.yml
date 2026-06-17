@@ -1,0 +1,78 @@
+name: terraform-translator
+
+on:
+  push:
+    paths:
+      - "terraform-translator/**"
+      - ".github/workflows/terraform-translator.yml"
+  pull_request:
+    paths:
+      - "terraform-translator/**"
+      - ".github/workflows/terraform-translator.yml"
+
+defaults:
+  run:
+    working-directory: terraform-translator
+
+jobs:
+  # Always runs — needs no secrets. The translator lazily imports the Anthropic
+  # SDK, so the offline suite runs without dependencies or an API key.
+  offline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run offline unit tests
+        run: python -m unittest discover -s tests -v
+
+  # Runs only when an ANTHROPIC_API_KEY repository secret is configured.
+  # Generates real Terraform via the CLI and validates it with the Terraform CLI.
+  live-check:
+    runs-on: ubuntu-latest
+    needs: offline-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect API key
+        id: detect
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No ANTHROPIC_API_KEY secret set — skipping live check."
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.detect.outputs.present == 'true'
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        if: steps.detect.outputs.present == 'true'
+        run: pip install -r requirements.txt
+
+      - name: Generate Terraform from a prompt
+        if: steps.detect.outputs.present == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          mkdir -p tf-check
+          python cli.py "a resource group named demo-rg in West Europe with a storage account" > tf-check/main.tf
+          echo "----- generated main.tf -----"
+          cat tf-check/main.tf
+
+      - uses: hashicorp/setup-terraform@v3
+        if: steps.detect.outputs.present == 'true'
+
+      - name: Validate generated HCL
+        if: steps.detect.outputs.present == 'true'
+        working-directory: terraform-translator/tf-check
+        run: |
+          terraform fmt -check
+          terraform init -backend=false
+          terraform validate

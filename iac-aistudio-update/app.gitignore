@@ -1,0 +1,15 @@
+# Rename this to ".gitignore" in your app repo root.
+# Keeps secrets, local venvs, and build cruft out of git.
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+.env
+.env.*
+*.local
+.DS_Store
+.pytest_cache/
+# Don't commit local SQLite dev databases
+users.db
+instance/
