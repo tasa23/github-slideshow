@@ -71,6 +71,17 @@ curl -s localhost:5000/api/translate \
 Then run `terraform fmt -check` / `terraform validate` on the output to confirm
 it's syntactically valid HCL.
 
+### Continuous integration
+
+`.github/workflows/terraform-translator.yml` runs on every push/PR that touches
+this directory:
+
+- **`offline-tests`** — always runs, no secrets required.
+- **`live-check`** — runs only if an `ANTHROPIC_API_KEY` repository secret is
+  set (Settings → Secrets and variables → Actions). It generates Terraform via
+  the CLI and validates it with `terraform fmt`/`init`/`validate`. Without the
+  secret it is skipped, not failed.
+
 ## How it works
 
 `translator.py` sends your description to Claude with a system prompt that makes
