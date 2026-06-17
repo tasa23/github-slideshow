@@ -1,0 +1,25 @@
+# GitHub Actions — runs the security regression tests on every push / PR.
+# Place this at .github/workflows/security-tests.yml in the iac-build repo.
+# No secrets needed: tests run in LOCAL_DEV mode (SQLite, dummy secret) in a
+# clean cloud Python, so your broken local Python is irrelevant.
+name: security-tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      LOCAL_DEV: "1"
+      FLASK_SECRET_KEY: ci-test-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: pip install --no-cache-dir -r requirements-dev.txt
+      - name: Run security tests
+        run: pytest -v
